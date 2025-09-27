@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/order",
+  "body": {
+    "asset": "BTC",
+    "side": "LONG",
+    "size": 0.5,
+    "type": "LIMIT",
+    "price": 85000.0,
+    "leverage": 3.0,
+    "post_only": true,
+    "client_id": "example-123"
+  }
+}

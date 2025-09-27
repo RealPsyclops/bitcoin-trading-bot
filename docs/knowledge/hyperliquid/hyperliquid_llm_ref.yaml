@@ -1,0 +1,35 @@
+name: Hyperliquid LLM Reference
+version: 0.1
+order_types:
+  - MARKET
+  - LIMIT
+  - POST_ONLY
+  - REDUCE_ONLY
+risk_constraints:
+  max_leverage_per_asset: { BTC: 5, ETH: 5, default: 3 }
+  notional_caps_usd: { BTC: 250000, default: 100000 }
+endpoints:
+  rest:
+    base: "<fill>"
+    place_order: { method: POST, path: "/order" }
+    cancel: { method: POST, path: "/cancel" }
+  websocket:
+    base: "<fill>"
+    channels:
+      - ticker
+      - trades
+      - orderbook
+      - user_private
+schemas:
+  OrderIntent:
+    asset: string
+    side: [LONG, SHORT]
+    size: float
+    leverage: float
+    type: [MARKET, LIMIT]
+    trigger?: { kind: [immediate, stop, takeProfit], price?: float }
+policies:
+  kill_switch: { max_drawdown_pct_day: 5 } # trip global halt if exceeded
+  max_open_positions: 5
+notes:
+  - "All code reads this file for constraints; update here → propagate to bot/backtests."

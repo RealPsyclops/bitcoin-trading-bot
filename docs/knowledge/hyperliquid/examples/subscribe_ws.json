@@ -1,0 +1,5 @@
+{
+  "op": "subscribe",
+  "channel": "ticker",
+  "symbol": "BTC"
+}

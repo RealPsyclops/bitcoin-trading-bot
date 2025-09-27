@@ -1,0 +1,5 @@
+# High-level, project-wide risk policy (mirrored in code)
+max_drawdown_pct_day: 5
+max_open_positions: 5
+max_leverage_default: 3
+position_size_pct_portfolio_default: 1.0

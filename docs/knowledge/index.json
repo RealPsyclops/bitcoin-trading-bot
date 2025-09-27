@@ -1,0 +1,15 @@
+{
+  "version": "1.0",
+  "collections": [
+    {
+      "name": "Hyperliquid",
+      "slug": "hyperliquid",
+      "paths": [
+        "docs/knowledge/hyperliquid/hyperliquid_llm_ref.yaml",
+        "docs/knowledge/hyperliquid/SUMMARY.md",
+        "docs/knowledge/hyperliquid/api/*.md",
+        "docs/knowledge/hyperliquid/examples/*.json"
+      ]
+    }
+  ]
+}
