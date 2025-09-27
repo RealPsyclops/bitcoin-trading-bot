@@ -1,35 +1,104 @@
 name: Hyperliquid LLM Reference
-version: 0.1
+version: 0.2
+
+# ---- Exchange integration (URLs) ----
+endpoints:
+  rest:
+    base: "https://api.hyperliquid.xyz/exchange"
+    testnet: "https://api.hyperliquid-testnet.xyz/exchange"
+  info:
+    base: "https://api.hyperliquid.xyz/info"
+    testnet: "https://api.hyperliquid-testnet.xyz/info"
+  websocket:
+    base: "wss://api.hyperliquid.xyz/ws"
+    testnet: "wss://api.hyperliquid-testnet.xyz/ws"
+
+# ---- Order types & time-in-force ----
 order_types:
   - MARKET
   - LIMIT
-  - POST_ONLY
+  - POST_ONLY   # 'Alo' on exchange payload
   - REDUCE_ONLY
+tif:
+  - GTC
+  - IOC
+  - ALO
+
+# ---- Risk & constraints (bot must obey) ----
 risk_constraints:
+  # Cap leverage by asset; default used if asset not listed
   max_leverage_per_asset: { BTC: 5, ETH: 5, default: 3 }
+  # Cap order notional (USD) to avoid fat-finger; optional
   notional_caps_usd: { BTC: 250000, default: 100000 }
-endpoints:
+  min_order_notional_usd: 10                   # exchange lower bound; avoid smaller orders
+  position_mode: one_way                       # assume no hedge mode; do NOT long and short same asset
+  max_open_positions: 5
+  kill_switch:
+    max_drawdown_pct_day: 5                    # trip global halt if exceeded
+    max_consecutive_failures: 5                # stop on repeated rejects/errors
+
+# ---- Fees & funding (for true PnL) ----
+fees:
+  maker_bps_default: 1.0                       # 0.01% (example; confirm tier live)
+  taker_bps_default: 3.5                       # 0.035% (example; confirm tier live)
+  assessed_time_utc: "daily"                   # trading fees assessed EOD UTC
+funding:
+  frequency: "hourly"
+  cap_per_hour: 0.04                           # 4%/hour cap
+  pnl_formula: "sign(position) * funding_rate * notional_at_mark"
+
+# ---- Rate limits (client safeguards) ----
+rate_limits:
   rest:
-    base: "<fill>"
-    place_order: { method: POST, path: "/order" }
-    cancel: { method: POST, path: "/cancel" }
+    notes:
+      - "Use info {type: userRateLimit} to monitor usage and backoff."
+      - "Explorer-style queries are heavy; prefer WS/S3 for history."
   websocket:
-    base: "<fill>"
-    channels:
-      - ticker
-      - trades
-      - orderbook
-      - user_private
+    max_connections: 100
+    max_subscriptions: 1000
+    max_messages_per_min: 2000
+    max_inflight_posts: 100
+    reconnect_strategy: "jittered backoff; resubscribe on reconnect"
+
+# ---- Schemas used in bot code ----
 schemas:
   OrderIntent:
-    asset: string
+    asset: string                # e.g., "BTC"
     side: [LONG, SHORT]
-    size: float
-    leverage: float
+    size: float                  # in contract units (exchange size)
+    leverage: float              # requested leverage (risk layer enforces max)
     type: [MARKET, LIMIT]
-    trigger?: { kind: [immediate, stop, takeProfit], price?: float }
-policies:
-  kill_switch: { max_drawdown_pct_day: 5 } # trip global halt if exceeded
-  max_open_positions: 5
-notes:
-  - "All code reads this file for constraints; update here → propagate to bot/backtests."
+    price?: float                # required for LIMIT
+    tif?: [GTC, IOC, ALO]
+    reduce_only?: bool
+    client_id?: string           # user-defined id for idempotency/trace
+    trigger?:                    # optional TP/SL/conditional
+      kind: [immediate, stop, takeProfit]
+      price?: float
+      isMarket?: bool
+      tpsl?: [tp, sl]
+    grouping?: [na, normalTpsl, positionTpsl]  # TP/SL attachment semantics
+
+  # Low-level payload (exchange POST /exchange)
+  ExchangeOrder:
+    a: int                       # asset index (map via /info meta)
+    b: bool                      # isBuy
+    p?: float                    # price (omit for pure MARKET)
+    s: float                     # size
+    r?: bool                     # reduceOnly
+    t:                           # type object (limit/market w/ tif)
+      variant: [Limit, Market]
+      tif?: [Gtc, Ioc, Alo]
+    c?: string                   # cloid (client order id)
+    grouping?: [na, normalTpsl, positionTpsl]
+    trigger?:                    # trigger order details
+      isMarket?: bool
+      triggerPx?: float
+      tpsl?: [tp, sl]
+
+# ---- TP/SL rules (important gotchas) ----
+tp_sl:
+  trigger_price_source: "mark"
+  market_slippage_tolerance: "≈10% (exchange-side)"
+  guidance:
+    - "Prefer position-level TP/SL for robustness
