@@ -1,8 +1,3 @@
-# Order Types
-
-- MARKET
-- LIMIT
-- POST_ONLY
-- REDUCE_ONLY
-
-Clarify exchange-specific semantics and edge cases.
+# Order Types & Options
+Market, Limit; TIF: Alo (post-only), Ioc, Gtc; Reduce-Only; Trigger (TP/SL).
+Grouping: na | normalTpsl | positionTpsl (for OCO/position-linked exits).
